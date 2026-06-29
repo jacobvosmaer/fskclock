@@ -3,9 +3,11 @@
 #define assert(x)                                                              \
   if (!(x))                                                                    \
   asm("bkpt 255")
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
 using namespace daisy;
 DaisyPod hw;
-float phase, freq, tempoperiod;
+float phase, freq;
 int bpm = 120, ticks, tickreset;
 #define freqhi 2100
 #define freqlo 1300
@@ -14,24 +16,23 @@ static void audio(AudioHandle::InterleavingInputBuffer in,
                   AudioHandle::InterleavingOutputBuffer out, size_t size) {
   hw.encoder.Debounce();
   bpm += hw.encoder.Increment();
-  bpm = bpm < 10 ? 10 : (bpm > 250 ? 250 : bpm);
-  tempoperiod = 2.5 * (float)tickreset / (float)bpm;
+  bpm = max(min(bpm, 300), 20);
+  tickreset = (2.5 * hw.AudioSampleRate()) / bpm;
   for (int i = 0; i < (int)size; i += 2) {
-    if (!((int)((float)ticks / (0.5 * tempoperiod)) & 1) &&
-        (tickreset - ticks) >= floorf(tempoperiod)) {
+    if (ticks >= tickreset)
+      ticks = 0;
+    if (ticks < tickreset / 2) {
       freq = hztofreq(freqhi);
     } else {
       freq = hztofreq(freqlo);
     }
-    if (++ticks == tickreset)
-      ticks = 0;
+    ticks++;
     phase = (phase + freq) - floorf(phase + freq);
     out[i] = out[i + 1] = phase > 0.5 ? 1.0 : -1.0;
   }
 }
 int main(void) {
   hw.Init();
-  tickreset = hw.AudioSampleRate();
   hw.StartAudio(audio);
   while (1)
     ;
