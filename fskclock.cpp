@@ -14,14 +14,14 @@ int bpm = 120, ticks, tickreset;
 float hztofreq(float hz) { return hz / hw.AudioSampleRate(); }
 static void audio(AudioHandle::InterleavingInputBuffer in,
                   AudioHandle::InterleavingOutputBuffer out, size_t size) {
-  hw.encoder.Debounce();
+  hw.ProcessAllControls();
   bpm += hw.encoder.Increment();
   bpm = max(min(bpm, 300), 20);
   tickreset = (2.5 * hw.AudioSampleRate()) / bpm;
   for (int i = 0; i < (int)size; i += 2) {
     if (ticks >= tickreset)
       ticks = 0;
-    if (ticks < tickreset / 2) {
+    if (ticks < tickreset / 2 && !hw.button1.Pressed()) {
       freq = hztofreq(freqhi);
     } else {
       freq = hztofreq(freqlo);
